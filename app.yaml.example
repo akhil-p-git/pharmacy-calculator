@@ -1,0 +1,24 @@
+runtime: nodejs20
+
+instance_class: F2
+
+# Entry point is automatically detected from package.json "start" script
+
+env_variables:
+  OPENAI_API_KEY: "your-openai-api-key-here"
+  RXNORM_API_BASE_URL: "https://rxnav.nlm.nih.gov/REST"
+  FDA_NDC_API_BASE_URL: "https://api.fda.gov/drug/ndc.json"
+  NODE_ENV: "production"
+
+automatic_scaling:
+  min_instances: 1
+  max_instances: 10
+  target_cpu_utilization: 0.6
+
+handlers:
+  - url: /.*
+    script: auto
+
+# Note: For App Engine, the entry point is automatically detected from package.json
+# Make sure your package.json has a "start" script that runs the built application
+

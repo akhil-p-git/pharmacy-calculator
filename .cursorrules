@@ -1,0 +1,253 @@
+# NDC Packaging & Quantity Calculator - Cursor AI Rules
+
+You are an expert TypeScript/SvelteKit developer working on the NDC Packaging & Quantity Calculator for Foundation Health.
+
+## Project Context
+
+This is a pharmacy prescription fulfillment tool that:
+- Normalizes drug names/NDCs to RxCUI using RxNorm API
+- Retrieves valid NDCs and package sizes from FDA NDC Directory
+- Uses OpenAI to parse prescription SIG (instructions)
+- Calculates total quantity needed and selects optimal NDC packages
+- Highlights inactive NDCs, overfills, and underfills
+
+**Tech Stack:** TypeScript, SvelteKit, OpenAI API, Vitest, Zod
+
+## Code Style & Standards
+
+### TypeScript
+- Use strict mode - no `any` types unless absolutely necessary
+- Prefer interfaces for object shapes, types for unions/primitives
+- Always include return types on functions
+- Use Zod for runtime validation at API boundaries
+
+### SvelteKit Conventions
+- API routes go in `src/routes/api/`
+- Server-side logic uses `+page.server.ts` or `+server.ts`
+- Keep business logic in `src/lib/core/`, not in routes
+- Use SvelteKit's form actions for mutations
+
+### Testing Requirements
+- **CRITICAL:** Write tests for ALL new code before moving on
+- Unit tests for `lib/` modules using Vitest
+- Integration tests for API routes
+- Mock external APIs (RxNorm, FDA, OpenAI) in tests
+- Aim for 80%+ code coverage
+- Test edge cases: inactive NDCs, invalid inputs, API failures
+
+### Error Handling
+- Always use try-catch for API calls
+- Return structured errors using the `APIError` type
+- Never expose raw error messages to users
+- Log errors server-side for debugging
+
+### API Integration
+- **RxNorm API:** Public, no auth, use caching (60min TTL)
+- **FDA NDC API:** Public, no auth, respect rate limits (batch requests)
+- **OpenAI API:** Requires key, monitor token usage, cache SIG parsing results
+- Always handle API failures gracefully
+
+## File Structure
+
+```
+src/
+├── lib/
+│   ├── api/           # External API clients (rxnorm, fda-ndc, openai)
+│   ├── core/          # Business logic (normalizer, calculator, matcher, selector)
+│   ├── types/         # TypeScript type definitions
+│   └── utils/         # Helper functions
+├── routes/
+│   ├── api/           # SvelteKit API endpoints
+│   └── +page.svelte   # Frontend pages
+tests/
+├── unit/              # Unit tests
+└── integration/       # Integration tests
+```
+
+## Key Implementation Patterns
+
+### 1. API Client Pattern
+```typescript
+// All API clients should:
+// - Return typed results using interfaces from lib/types
+// - Throw APIError on failures
+// - Implement caching where appropriate
+// - Include retry logic for transient failures
+
+export async function someAPICall(param: string): Promise<Result> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    return parseResponse(await response.json());
+  } catch (error) {
+    const apiError: APIError = {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      code: 'API_CODE',
+      details: error
+    };
+    throw apiError;
+  }
+}
+```
+
+### 2. Core Logic Pattern
+```typescript
+// Core business logic should:
+// - Accept validated inputs (use Zod schemas)
+// - Return structured results
+// - Be pure functions where possible (easier to test)
+// - Not directly call APIs (inject dependencies)
+
+export function calculateQuantity(
+  sig: ParsedSIG,
+  daysSupply: number
+): QuantityCalculation {
+  const dailyDose = sig.dose * sig.frequency;
+  const totalQuantity = dailyDose * daysSupply;
+
+  return {
+    totalQuantityNeeded: totalQuantity,
+    unit: sig.doseUnit,
+    daysSupply,
+    dailyDose
+  };
+}
+```
+
+### 3. Test Pattern
+```typescript
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+describe('FeatureName', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should handle happy path', () => {
+    // Arrange
+    const input = { /* ... */ };
+
+    // Act
+    const result = functionUnderTest(input);
+
+    // Assert
+    expect(result).toEqual(expectedOutput);
+  });
+
+  it('should handle error case', () => {
+    // Test error scenarios
+    expect(() => functionUnderTest(badInput)).toThrow('Expected error');
+  });
+});
+```
+
+## Common Tasks & Patterns
+
+### Creating a New API Client
+1. Define types in `src/lib/types/index.ts`
+2. Create client file in `src/lib/api/[name].ts`
+3. Implement caching if appropriate
+4. Create test file `src/lib/api/[name].test.ts`
+5. Mock fetch and test all scenarios
+6. Run tests: `npm test`
+
+### Creating Core Business Logic
+1. Define input/output types
+2. Create file in `src/lib/core/[name].ts`
+3. Write pure functions (no side effects)
+4. Create comprehensive tests
+5. Test edge cases and error scenarios
+
+### Creating API Endpoints
+1. Create route in `src/routes/api/[name]/+server.ts`
+2. Use Zod to validate request body
+3. Call core business logic (don't put logic in routes)
+4. Return structured JSON responses
+5. Write integration tests
+
+## Success Criteria (P0 - Must Have)
+
+- [ ] Input: drug name/NDC, SIG, days' supply
+- [ ] Normalize to RxCUI (RxNorm API)
+- [ ] Get valid NDCs (FDA API)
+- [ ] Parse SIG with AI (OpenAI)
+- [ ] Calculate total quantity
+- [ ] Select optimal NDC(s)
+- [ ] Highlight inactive NDCs, overfills/underfills
+- [ ] Return JSON output + UI display
+- [ ] Performance: < 2 seconds per query
+- [ ] Testing: 80%+ coverage
+- [ ] Handle errors gracefully
+
+## OpenAI Prompt Guidelines
+
+When parsing SIG instructions:
+```typescript
+const prompt = `Parse this prescription SIG into structured data:
+SIG: "${sig}"
+
+Extract:
+- dose: numeric value
+- doseUnit: tablet, ml, mg, etc.
+- frequency: times per day (convert "TID" to 3, "BID" to 2, etc.)
+- route: oral, topical, etc.
+- instructions: full readable text
+
+Return JSON only. Flag if ambiguous.`;
+```
+
+## Common Gotchas
+
+1. **NDC Format:** Multiple formats exist (10-digit, 11-digit). Normalize to 5-4-2 format
+2. **Unit Conversion:** Ensure dose units match package units (tablets vs bottles)
+3. **Inactive NDCs:** Always check marketing dates before recommending
+4. **SIG Parsing:** Medical abbreviations (BID, TID, QID, PRN, etc.) need translation
+5. **Multi-pack Logic:** Sometimes multiple package sizes needed to minimize overfill
+6. **API Rate Limits:** FDA API has limits, batch requests and add delays
+
+## Environment Variables
+
+Required in `.env`:
+```
+OPENAI_API_KEY=sk-...
+RXNORM_API_BASE_URL=https://rxnav.nlm.nih.gov/REST
+FDA_NDC_API_BASE_URL=https://api.fda.gov/drug/ndc.json
+```
+
+## Testing Commands
+
+```bash
+npm test              # Run all tests in watch mode
+npm run test:run      # Run tests once
+npm run test:coverage # Run with coverage report
+npm run test:ui       # Open Vitest UI
+```
+
+## When Making Changes
+
+1. ✅ Write/update tests FIRST (TDD approach)
+2. ✅ Implement the feature
+3. ✅ Run tests to ensure they pass
+4. ✅ Check test coverage
+5. ✅ Update types if needed
+6. ✅ Handle errors properly
+7. ✅ Add JSDoc comments
+8. ✅ Test edge cases
+
+## Example Prescription Flows
+
+**Simple Tablet:**
+- Input: "Lisinopril 10mg", SIG: "Take 1 tablet daily", Days: 30
+- Expected: 30 tablets total, recommend 1x 30-count bottle
+
+**Liquid:**
+- Input: "Amoxicillin suspension 400mg/5ml", SIG: "Take 5ml twice daily", Days: 10
+- Expected: 100ml total, recommend bottle that minimizes overfill
+
+**Complex:**
+- Input: "Prednisone 10mg", SIG: "Taper: 4 tabs x 3 days, 3 tabs x 3 days, 2 tabs x 3 days, 1 tab x 3 days"
+- Expected: Calculate total (30 tablets), flag complexity
+
+Remember: This tool affects patient safety. Accuracy is paramount. When in doubt, flag for pharmacist review.
