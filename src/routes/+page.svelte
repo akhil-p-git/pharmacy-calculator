@@ -3,7 +3,10 @@
 	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import WarningBadge from '$lib/components/WarningBadge.svelte';
+	import Navbar from '$lib/components/Navbar.svelte';
+	import LandingPage from '$lib/components/LandingPage.svelte';
 
+	let currentSection = $state('home');
 	let drugNameOrNDC = $state('');
 	let sig = $state('');
 	let daysSupply = $state(30);
@@ -12,6 +15,12 @@
 	let error: string | null = $state(null);
 	let showAlternatives = $state(false);
 	let copiedNDC = $state<string | null>(null);
+
+	function handleNavigation(section: string) {
+		currentSection = section;
+		// Scroll to top on navigation
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
 
 	function copyNDC(ndc: string) {
 		navigator.clipboard.writeText(ndc).then(() => {
@@ -105,23 +114,26 @@
 </script>
 
 <svelte:head>
-	<title>NDC Packaging & Quantity Calculator</title>
+	<title>MediCalc - NDC Packaging & Quantity Calculator</title>
 	<style>
 		:global(body) {
-			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-				sans-serif;
-			background: #f5f7fa;
+			font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+			background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+			background-attachment: fixed;
 			margin: 0;
 			padding: 0;
+			min-height: 100vh;
 		}
 	</style>
 </svelte:head>
 
-<div class="container">
-	<header class="header">
-		<h1>NDC Packaging & Quantity Calculator</h1>
-		<p class="subtitle">AI-powered prescription fulfillment assistant</p>
-	</header>
+<Navbar onNavigate={handleNavigation} />
+
+<div class="page-content">
+	{#if currentSection === 'home'}
+		<LandingPage onNavigate={handleNavigation} />
+	{:else if currentSection === 'calculator'}
+		<div class="calculator-section">
 
 	<div class="form-container">
 		<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="form">
@@ -386,40 +398,110 @@
 				{/if}
 			</div>
 		{/if}
-	</div>
+		</div>
+		</div>
+	{:else}
+		<div class="placeholder-section">
+			<h2>Coming Soon</h2>
+			<p>This section is under construction.</p>
+		</div>
+	{/if}
 </div>
 
 <style>
-	.container {
+	/* CSS Variables for Theme Support */
+	:root,
+	:global([data-theme='light']) {
+		--bg-gradient-start: #667eea;
+		--bg-gradient-end: #764ba2;
+		--text-primary: #2d3748;
+		--text-secondary: #4a5568;
+		--text-light: #718096;
+		--text-on-gradient: rgba(255, 255, 255, 0.95);
+		--card-bg: rgba(255, 255, 255, 0.95);
+		--card-border: rgba(255, 255, 255, 0.3);
+		--card-shadow: rgba(31, 38, 135, 0.37);
+		--navbar-bg: rgba(255, 255, 255, 0.95);
+		--navbar-border: rgba(102, 126, 234, 0.2);
+		--input-bg: #ffffff;
+		--input-border: rgba(102, 126, 234, 0.3);
+		--button-gradient-start: #667eea;
+		--button-gradient-end: #764ba2;
+		--button-shadow: rgba(102, 126, 234, 0.3);
+		--badge-bg: rgba(102, 126, 234, 0.1);
+		--badge-text: #667eea;
+	}
+
+	:global([data-theme='dark']) {
+		--bg-gradient-start: #1a0b2e;
+		--bg-gradient-end: #2d1b4e;
+		--text-primary: #e2e8f0;
+		--text-secondary: #cbd5e0;
+		--text-light: #a0aec0;
+		--text-on-gradient: rgba(255, 255, 255, 0.95);
+		--card-bg: rgba(30, 20, 60, 0.85);
+		--card-border: rgba(147, 167, 255, 0.2);
+		--card-shadow: rgba(0, 0, 0, 0.5);
+		--navbar-bg: rgba(30, 20, 60, 0.95);
+		--navbar-border: rgba(147, 167, 255, 0.2);
+		--input-bg: rgba(20, 15, 40, 0.8);
+		--input-border: rgba(147, 167, 255, 0.3);
+		--button-gradient-start: #7c3aed;
+		--button-gradient-end: #a855f7;
+		--button-shadow: rgba(124, 58, 237, 0.4);
+		--badge-bg: rgba(147, 167, 255, 0.15);
+		--badge-text: #a5b4fc;
+	}
+
+	/* Smooth transitions for theme changes */
+	:global(*) {
+		transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+	}
+
+	.page-content {
+		padding-top: 80px; /* Account for fixed navbar */
+		min-height: calc(100vh - 80px);
+	}
+
+	.calculator-section {
 		max-width: 1200px;
 		margin: 0 auto;
 		padding: 2rem 1rem;
 	}
 
-	.header {
+	.placeholder-section {
+		max-width: 800px;
+		margin: 0 auto;
+		padding: 4rem 2rem;
 		text-align: center;
-		margin-bottom: 2rem;
+		color: white;
 	}
 
-	.header h1 {
-		color: #1a365d;
-		font-size: 2rem;
-		font-weight: 600;
-		margin: 0 0 0.5rem 0;
+	.placeholder-section h2 {
+		font-size: 2.5rem;
+		margin-bottom: 1rem;
 	}
 
-	.subtitle {
-		color: #4a5568;
-		font-size: 1rem;
-		margin: 0;
+	.placeholder-section p {
+		font-size: 1.25rem;
+		opacity: 0.9;
 	}
 
 	.form-container {
-		background: white;
-		border-radius: 8px;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-		padding: 2rem;
+		background: var(--card-bg);
+		backdrop-filter: blur(20px);
+		-webkit-backdrop-filter: blur(20px);
+		border-radius: 20px;
+		box-shadow: 0 8px 32px 0 var(--card-shadow);
+		border: 1px solid var(--card-border);
+		padding: 2.5rem;
 		margin-bottom: 2rem;
+		transition: transform 0.3s ease, box-shadow 0.3s ease;
+	}
+
+	.form-container:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.45);
 	}
 
 	.form {
@@ -432,10 +514,12 @@
 
 	.label {
 		display: block;
-		font-weight: 500;
-		color: #2d3748;
+		font-weight: 600;
+		color: #4a5568;
 		margin-bottom: 0.5rem;
 		font-size: 0.875rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
 	}
 
 	.required {
@@ -445,20 +529,23 @@
 	.input,
 	.textarea {
 		width: 100%;
-		padding: 0.75rem;
-		border: 1px solid #cbd5e0;
-		border-radius: 4px;
+		padding: 0.875rem 1.125rem;
+		border: 2px solid rgba(102, 126, 234, 0.2);
+		border-radius: 12px;
 		font-size: 1rem;
 		font-family: inherit;
-		transition: border-color 0.2s;
+		transition: all 0.3s ease;
 		box-sizing: border-box;
+		background: var(--input-bg);
 	}
 
 	.input:focus,
 	.textarea:focus {
 		outline: none;
-		border-color: #3182ce;
-		box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+		border-color: #667eea;
+		box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+		transform: translateY(-2px);
+		background: var(--input-bg);
 	}
 
 	.input:disabled,
@@ -483,39 +570,52 @@
 	}
 
 	.button {
-		padding: 0.75rem 1.5rem;
+		padding: 1rem 2rem;
 		border: none;
-		border-radius: 4px;
+		border-radius: 12px;
 		font-size: 1rem;
-		font-weight: 500;
+		font-weight: 600;
 		cursor: pointer;
-		transition: background-color 0.2s;
+		transition: all 0.3s ease;
 		display: inline-flex;
 		align-items: center;
+		justify-content: center;
 		gap: 0.5rem;
+		letter-spacing: 0.025em;
+	}
+
+	.button-primary {
+		background: linear-gradient(135deg, var(--button-gradient-start) 0%, var(--button-gradient-end) 100%);
+		color: white;
+		box-shadow: 0 4px 15px 0 var(--button-shadow);
+	}
+
+	.button-primary:hover:not(:disabled) {
+		transform: translateY(-2px);
+		box-shadow: 0 6px 20px 0 rgba(102, 126, 234, 0.5);
+	}
+
+	.button-primary:active:not(:disabled) {
+		transform: translateY(0);
+	}
+
+	.button-secondary {
+		background: var(--card-bg);
+		color: #667eea;
+		border: 2px solid #667eea;
+		box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.1);
+	}
+
+	.button-secondary:hover {
+		background: white;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.15);
 	}
 
 	.button:disabled {
 		opacity: 0.6;
 		cursor: not-allowed;
-	}
-
-	.button-primary {
-		background-color: #3182ce;
-		color: white;
-	}
-
-	.button-primary:hover:not(:disabled) {
-		background-color: #2c5aa0;
-	}
-
-	.button-secondary {
-		background-color: #e2e8f0;
-		color: #2d3748;
-	}
-
-	.button-secondary:hover {
-		background-color: #cbd5e0;
+		transform: none !important;
 	}
 
 	.spinner-inline {
@@ -553,20 +653,44 @@
 	}
 
 	.card {
-		background: white;
-		border-radius: 8px;
-		padding: 1.5rem;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+		background: var(--card-bg);
+		backdrop-filter: blur(10px);
+		-webkit-backdrop-filter: blur(10px);
+		border-radius: 20px;
+		padding: 2rem;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+		border: 1px solid var(--card-border);
+		transition: transform 0.3s ease, box-shadow 0.3s ease;
+	}
+
+	.card:hover {
+		transform: translateY(-4px);
+		box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
 	}
 
 	.results {
 		margin-top: 2rem;
+		animation: slideUp 0.6s ease-out;
+	}
+
+	@keyframes slideUp {
+		from {
+			opacity: 0;
+			transform: translateY(30px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 
 	.results-title {
-		color: #1a365d;
-		font-size: 1.5rem;
-		font-weight: 600;
+		font-size: 1.75rem;
+		font-weight: 700;
+		background: linear-gradient(135deg, #667eea, #764ba2);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		background-clip: text;
 		margin: 0 0 1.5rem 0;
 	}
 
@@ -575,12 +699,12 @@
 	}
 
 	.result-section h3 {
-		color: #2d3748;
+		color: var(--text-primary);
 		font-size: 1.125rem;
 		font-weight: 600;
 		margin: 0 0 1rem 0;
-		padding-bottom: 0.5rem;
-		border-bottom: 1px solid #e2e8f0;
+		padding-bottom: 0.75rem;
+		border-bottom: 2px solid rgba(102, 126, 234, 0.2);
 	}
 
 	.result-item {
@@ -595,12 +719,12 @@
 
 	.result-label {
 		font-weight: 500;
-		color: #4a5568;
+		color: var(--text-secondary);
 		min-width: 180px;
 	}
 
 	.result-value {
-		color: #2d3748;
+		color: var(--text-primary);
 	}
 
 	.result-value-highlight {
@@ -610,11 +734,18 @@
 	}
 
 	.ndc-card {
-		background: #f7fafc;
-		border: 1px solid #e2e8f0;
-		border-radius: 6px;
-		padding: 1.25rem;
+		background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(240, 147, 251, 0.05));
+		border: 2px solid rgba(102, 126, 234, 0.2);
+		border-radius: 16px;
+		padding: 1.5rem;
 		margin-bottom: 1rem;
+		transition: all 0.3s ease;
+	}
+
+	.ndc-card:hover {
+		transform: translateX(4px);
+		border-color: rgba(102, 126, 234, 0.4);
+		box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
 	}
 
 	.ndc-card-alternative {
@@ -668,26 +799,27 @@
 	}
 
 	.badge {
-		padding: 0.25rem 0.75rem;
-		border-radius: 12px;
+		padding: 0.375rem 0.875rem;
+		border-radius: 9999px;
 		font-size: 0.75rem;
-		font-weight: 600;
+		font-weight: 700;
 		text-transform: uppercase;
+		letter-spacing: 0.05em;
 	}
 
 	.badge-success {
-		background-color: #c6f6d5;
-		color: #22543d;
+		background: linear-gradient(135deg, #48bb78, #38a169);
+		color: white;
 	}
 
 	.badge-warning {
-		background-color: #feebc8;
-		color: #744210;
+		background: linear-gradient(135deg, #ed8936, #dd6b20);
+		color: white;
 	}
 
 	.badge-info {
-		background-color: #bee3f8;
-		color: #2c5282;
+		background: linear-gradient(135deg, #4299e1, #3182ce);
+		color: white;
 	}
 
 	.ndc-details {
@@ -755,21 +887,14 @@
 		margin-top: 1rem;
 	}
 
-	@media (max-width: 640px) {
-		.container {
-			padding: 1rem 0.5rem;
+	@media (max-width: 768px) {
+		.calculator-section {
+			padding: 1rem;
 		}
 
 		.form-container {
 			padding: 1.5rem;
-		}
-
-		.header h1 {
-			font-size: 1.5rem;
-		}
-
-		.ndc-details {
-			grid-template-columns: 1fr;
+			border-radius: 16px;
 		}
 
 		.form-actions {
@@ -778,6 +903,10 @@
 
 		.button {
 			width: 100%;
+		}
+
+		.ndc-details {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>
