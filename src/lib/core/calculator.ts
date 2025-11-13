@@ -4,6 +4,7 @@ import { parseSIG } from '$lib/api/openai';
 import { getRxCUINDCs } from '$lib/api/rxnorm';
 import { getMultipleNDCPackages } from '$lib/api/fda-ndc';
 import { selectOptimalNDCs, checkForInactiveNDCs } from './ndc-selector';
+import { getMockNDCPackages, hasMockData } from '$lib/data/mock-ndc-data';
 import type {
 	CalculationInput,
 	CalculationResult,
@@ -67,11 +68,23 @@ export async function calculatePrescription(
 			return createErrorResult(input, errors, warnings, normalizedDrug);
 		}
 
-		// Step 4: Get NDCs from RxNorm
+		// Step 4: Get NDCs from RxNorm (with mock data fallback)
 		let ndcCodes: string[] = [];
+		let packages: NDCPackage[] = [];
+		let usedMockData = false;
+
 		try {
 			ndcCodes = await getRxCUINDCs(normalizedDrug.rxcui);
-			if (ndcCodes.length === 0) {
+
+			// If RxNorm returns no NDCs, try mock data as fallback
+			if (ndcCodes.length === 0 && hasMockData(normalizedDrug.rxcui)) {
+				const mockPackages = getMockNDCPackages(normalizedDrug.rxcui);
+				if (mockPackages) {
+					packages = mockPackages;
+					usedMockData = true;
+					warnings.push('Using demonstration data - RxNorm API returned no NDC codes for this medication');
+				}
+			} else if (ndcCodes.length === 0) {
 				warnings.push('No NDC codes found for this drug - this is a known limitation of the public RxNorm API');
 				return createPartialResult(
 					input,
@@ -87,26 +100,36 @@ export async function calculatePrescription(
 		} catch (error) {
 			const apiError = error as APIError;
 			warnings.push(apiError.message || 'Failed to retrieve NDC codes from RxNorm');
-			// Continue with empty NDC list - we'll return partial result
+
+			// Try mock data as fallback on error
+			if (hasMockData(normalizedDrug.rxcui)) {
+				const mockPackages = getMockNDCPackages(normalizedDrug.rxcui);
+				if (mockPackages) {
+					packages = mockPackages;
+					usedMockData = true;
+					warnings.push('Using demonstration data due to RxNorm API error');
+				}
+			}
 		}
 
-		// Step 5: Get package info from FDA
-		let packages: NDCPackage[] = [];
-		if (ndcCodes.length > 0) {
+		// Step 5: Get package info from FDA (skip if using mock data)
+		if (!usedMockData && ndcCodes.length > 0) {
 			try {
 				packages = await getMultipleNDCPackages(ndcCodes);
 				if (packages.length === 0) {
 					warnings.push('No package information found for available NDCs');
-				} else {
-					// Check for inactive NDCs
-					const inactiveWarnings = checkForInactiveNDCs(packages);
-					warnings.push(...inactiveWarnings);
 				}
 			} catch (error) {
 				const apiError = error as APIError;
 				warnings.push(apiError.message || 'Failed to retrieve package information from FDA');
 				// Continue with empty packages - we'll return partial result
 			}
+		}
+
+		// Check for inactive NDCs (for both real and mock data)
+		if (packages.length > 0) {
+			const inactiveWarnings = checkForInactiveNDCs(packages);
+			warnings.push(...inactiveWarnings);
 		}
 
 		// Step 6: Calculate quantity
